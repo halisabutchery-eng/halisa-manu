@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מחירון והזמנה – אטליז חליסה עספור</title>
+  <style>
+    :root{
+      --bg:#0f1115; --paper:#161b22; --ink:#e8ecf1; --muted:#8b93a7; --line:#252b3a; --accent:#ffd166; --cta:#3ccf91;
+      --card:#171a21; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1200px 800px at 100% -20%, #1d2230, var(--bg));color:var(--ink);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    header{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
+    h1{margin:0;font-size:22px}
+    .tools{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    input,select,button{background:var(--paper);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+    .cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:start}
+    .cat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column}
+    .cat h2{margin:0;padding:12px 14px;font-size:18px;background:#141924;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
+    .list{padding:10px}
+    .card{background:linear-gradient(180deg,var(--card),#141924);border:1px solid #222838;border-radius:12px;padding:10px;margin-bottom:10px;box-shadow:0 3px 12px rgba(0,0,0,.25)}
+    .row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+    .name{font-weight:700}
+    .price{font-weight:800;color:var(--accent)}
+    .unit{font-size:12px;color:var(--muted);margin-inline-start:8px}
+    .qty{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+    .qty .btn{padding:6px 10px;font-weight:700;font-size:15px;cursor:pointer}
+    .qty input{width:64px;text-align:center}
+    .qty .add{margin-inline-start:auto;border-color:#2f3650}
+    .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .chip{font-size:12px;padding:6px 8px;border:1px dashed var(--line);border-radius:999px;color:var(--muted);cursor:pointer;background:transparent}
+    .chip:hover{border-color:#3a425a}
+    .cart{position:sticky;top:10px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:260px}
+    .cart h3{margin:0 0 8px 0}
+    .cart-list{display:grid;gap:8px;margin:8px 0;max-height:45vh;overflow:auto}
+    .mini{font-size:12px;color:var(--muted)}
+    .line{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+    .del{background:transparent;border:1px dashed var(--line);padding:6px 8px;border-radius:8px;color:var(--muted);font-size:12px;cursor:pointer}
+    .note{margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;line-height:1.5}
+    .cta{background:var(--cta);border-color:var(--cta);color:#06251a;font-weight:800}
+    .two{display:grid;grid-template-columns:1fr 320px;gap:14px}
+    @media (max-width:900px){.two{grid-template-columns:1fr}.cart{position:static}}
+    @media print{
+      .tools, .cta, #copyBtn, #waBtn {display:none}
+      body{background:#fff;color:#000}
+      .card{box-shadow:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>מחירון והזמנה – אטליז חליסה עספור</h1>
+      <div class="tools">
+        <input id="q" type="search" placeholder="חיפוש מוצר…" />
+        <select id="sort">
+          <option value="name-asc">מיון: א–ת</option>
+          <option value="name-desc">מיון: ת–א</option>
+          <option value="price-asc">מחיר (נמוך → גבוה)</option>
+          <option value="price-desc">מחיר (גבוה → נמוך)</option>
+        </select>
+        <span id="count" class="mini">—</span>
+      </div>
+    </header>
+
+    <div class="two">
+      <div id="cols" class="cols"></div>
+
+      <aside class="cart">
+        <h3>סל קניות</h3>
+        <div class="mini">הוסיפו כמויות → העתקה או שליחת הסל ל־WhatsApp</div>
+        <div id="cartList" class="cart-list"></div>
+
+        <div class="note">
+          המחיר הסופי ייקבע אחרי שקילה בפועל. <br/>
+          המחירון מתעדכן לעיתים קרובות – יש לוודא את תוקפו בעת ההזמנה.
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="copyBtn">העתקת סל</button>
+          <button id="waBtn" class="cta">שליחה ל־WhatsApp</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const WA_BASE = "https://wa.me/972549392888?text=";
+
+    const DATA = [
+      // עופות
+      {name:"עוף שלם", price:25, category:"עופות"},
+      {name:"כבד עוף", price:30, category:"עופות"},
+      {name:"לבבות", price:35, category:"עופות"},
+      {name:"כרעיים", price:28, category:"עופות"},
+      {name:"חזה עוף", price:40, category:"עופות"},
+      {name:"שניצל", price:45, category:"עופות"},
+      {name:"פילה עוף", price:48, category:"עופות"},
+      {name:"פרגית בלי עור", price:50, category:"עופות"},
+      {name:"פרגית עם עור", price:40, category:"עופות"},
+      {name:"שוקיים", price:30, category:"עופות"},
+      {name:"כנפיים", price:20, category:"עופות"},
+      {name:"חזה הודו", price:35, category:"עופות"},
+      {name:"כרעיים 4 קילו", price:100, category:"עופות", qtyMode:"none"},
+
+      // עגל
+      {name:"בשר טחון", price:66, category:"עגל"},
+      {name:"זנב עגל", price:54, category:"עגל"},
+      {name:"לשון עגל", price:75, category:"עגל"},
+      {name:"שקדי עגל", price:150, category:"עגל"},
+      {name:"נתח קצבים", price:149, category:"עגל"},
+      {name:"בשר ראש", price:79, category:"עגל"},
+      {name:"רגל עגל", price:50, category:"עגל"},
+      {name:"כבד עגל", price:30, category:"עגל"},
+      {name:"מוח עגל ליחידה", price:35, category:"עגל", qtyMode:"unit"},
+      {name:"כתף מס' 5", price:95, category:"עגל"},
+      {name:"אוסובוקו עגל", price:75, category:"עגל"},
+      {name:"שייטל", price:109, category:"עגל"},
+      {name:"בשר עגלה", price:80, category:"עגל"},
+
+      // סטייקים
+      {name:"צלעות טיבון", price:180, category:"סטייקים"},
+      {name:"צלעות בייבי", price:249, category:"סטייקים"},
+      {name:"דפי אסאדו", price:100, category:"סטייקים"},
+      {name:"דפי אנטריקוט", price:159, category:"סטייקים"},
+      {name:"רצועות ואסיו", price:139, category:"סטייקים"},
+      {name:"פילה שייטל", price:130, category:"סטייקים"},
+      {name:"אנטריקוט עגל", price:160, category:"סטייקים"},
+      {name:"פילה עגל", price:200, category:"סטייקים"},
+      {name:"סינטה", price:150, category:"סטייקים"},
+      {name:"פיקנייה", price:129, category:"סטייקים"},
+      {name:"אנטריקוט בלאק אנגוס", price:230, category:"סטייקים"},
+      {name:"טיבון בלאק אנגוס", price:180, category:"סטייקים"},
+      {name:"טומהוק", price:180, category:"סטייקים"},
+
+      // כבש
+      {name:"כבש בלי עצם", price:180, category:"כבש"},
+      {name:"כבש עם עצם", price:129, category:"כבש"},
+      {name:"לייה בלדי", price:120, category:"כבש"},
+      {name:"שוק כבש", price:129, category:"כבש"},
+      {name:"כבד כבש", price:50, category:"כבש"},
+      {name:"שיפודי כבש", price:180, category:"כבש"},
+      {name:"אוסובוקו כבש", price:130, category:"כבש"},
+      {name:"צוור כבש", price:129, category:"כבש"},
+      {name:"כתף כבש", price:129, category:"כבש"},
+
+      // מיוחדים
+      {name:"עראיס", price:69, category:"מיוחדים"},
+      {name:"המבורגר", price:75, category:"מיוחדים"},
+      {name:"קבב", price:75, category:"מיוחדים"},
+      {name:"סרסיסו", price:75, category:"מיוחדים"},
+      {name:"לוליפופ", price:180, category:"מיוחדים"},
+      {name:"מרגז חריף", price:75, category:"מיוחדים"},
+      {name:"לוליפופ כבש", price:89, category:"מיוחדים"},
+      {name:"כנפיים מתובל", price:25, category:"מיוחדים"},
+      {name:"עוף ממולה", price:49, category:"מיוחדים"},
+      {name:"כבש ממולאים", price:139, category:"מיוחדים"},
+      {name:"עגל ממולה", price:139, category:"מיוחדים"},
+      {name:"שיפדי פרגית", price:69, category:"מיוחדים"},
+      {name:"שיפודי לבבות", price:69, category:"מיוחדים"},
+
+      // שווארמה
+      {name:"עגל (שווארמה)", price:85, category:"שווארמה"},
+      {name:"הודו נקבה", price:70, category:"שווארמה"},
+      {name:"עוף (שווארמה)", price:45, category:"שווארמה"},
+      {name:"שווארמה פרגית", price:50, category:"שווארמה"},
+      {name:"כבש (שווארמה)", price:180, category:"שווארמה"}
+    ];
+    const desiredOrder = ["עופות","עגל","סטייקים","כבש","מיוחדים","שווארמה"];
+
+    const cols = document.getElementById('cols');
+    const q = document.getElementById('q');
+    const sortSel = document.getElementById('sort');
+    const countEl = document.getElementById('count');
+    const cartList = document.getElementById('cartList');
+    const copyBtn = document.getElementById('copyBtn');
+    const waBtn = document.getElementById('waBtn');
+
+    const cart = new Map();
+    const keyOf = i => `${i.name}|${i.category}`;
+    function addToCart(item, qty){
+      const k = keyOf(item);
+      if(!cart.has(k)) cart.set(k, {...item, qty:0});
+      cart.get(k).qty = Math.max(0, (Number(cart.get(k).qty)||0) + qty);
+      if(cart.get(k).qty === 0) cart.delete(k);
+      renderCart();
+    }
+    function removeItem(item){ cart.delete(keyOf(item)); renderCart(); }
+    const money = n => `₪ ${Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:2})}`;
+
+    function renderCart(){
+      cartList.innerHTML = '';
+      Array.from(cart.values()).forEach(it=>{
+        const line = document.createElement('div'); line.className='line';
+        const left = document.createElement('div');
+        left.innerHTML = `<div><strong>${it.name}</strong> <span class="mini">(${it.category})</span></div>
+                          <div class="mini">${money(it.price)} × ${it.qty}</div>`;
+        const priceEl = document.createElement('div'); priceEl.className='mini'; priceEl.textContent = money(it.price * it.qty);
+        const del = document.createElement('button'); del.className='del'; del.textContent='מחק';
+        del.addEventListener('click', ()=> removeItem(it));
+        line.append(left, priceEl, del);
+        cartList.append(line);
+      });
+    }
+
+    function buildText(){
+      const lines = [];
+      lines.push("הזמנה לאטליז חליסה עספור:");
+      Array.from(cart.values()).forEach(it=>{
+        lines.push(`• ${it.category} | ${it.name} × ${it.qty} — ${money(it.price * it.qty)}`);
+      });
+      lines.push("");
+      lines.push("הערה: המחיר הסופי ייקבע אחרי שקילה בפועל. המחירון מתעדכן; יש לוודא תוקף בעת ההזמנה.");
+      return lines.join("\n");
+    }
+
+    copyBtn.addEventListener('click', ()=>{
+      navigator.clipboard.writeText(buildText()).then(()=>{
+        copyBtn.textContent="הועתק ✓";
+        setTimeout(()=>copyBtn.textContent="העתקת סל",900);
+      });
+    });
+    waBtn.addEventListener('click', ()=>{
+      window.open(WA_BASE + encodeURIComponent(buildText()), "_blank");
+    });
+
+    function groupByCategory(rows){
+      const m = new Map();
+      rows.forEach(x=>{
+        const c = x.category || "אחר";
+        if(!m.has(c)) m.set(c, []);
+        m.get(c).push(x);
+      });
+      return m;
+    }
+
+    function apply(){
+      const term = (q.value||"").trim();
+      const s = sortSel.value;
+      let rows = DATA.filter(x => !term || (x.name && x.name.includes(term)));
+      const cmp = (a,b)=>{
+        if (s==='name-asc')  return (a.name||'').localeCompare(b.name||'','he');
+        if (s==='name-desc') return (b.name||'').localeCompare(a.name||'','he');
+        if (s==='price-asc') return (a.price??Infinity) - (b.price??Infinity);
+        if (s==='price-desc')return (b.price??-Infinity) - (a.price??-Infinity);
+        return 0;
+      };
+      render(rows, cmp);
+    }
+
+    function render(rows, cmp){
+      countEl.textContent = `${rows.length.toLocaleString('he-IL')} פריטים`;
+      const by = groupByCategory(rows);
+      const rest = Array.from(by.keys()).filter(c=>!desiredOrder.includes(c)).sort((a,b)=>a.localeCompare(b,'he'));
+      const order = [...desiredOrder.filter(c=>by.has(c)), ...rest];
+
+      cols.innerHTML = '';
+      order.forEach(cat=>{
+        const section = document.createElement('section');
+        section.className = 'cat';
+        const h2 = document.createElement('h2'); h2.textContent = cat; section.appendChild(h2);
+
+        const list = document.createElement('div'); list.className='list';
+        by.get(cat).slice().sort(cmp).forEach(item=>{
+          const card = document.createElement('div'); card.className='card';
+
+          const top = document.createElement('div'); top.className='row';
+          const name = document.createElement('div'); name.className='name'; name.textContent = item.name;
+          const right = document.createElement('div'); right.style.display='flex'; right.style.alignItems='center';
+          const price = document.createElement('div'); price.className='price'; price.textContent = money(item.price);
+          right.appendChild(price);
+          if(item.qtyMode === 'unit'){
+            const unit = document.createElement('span'); unit.className='unit'; unit.textContent = 'ליחידה';
+            right.appendChild(unit);
+          }
+          top.append(name, right);
+
+          const qty = document.createElement('div'); qty.className='qty';
+
+          if(item.qtyMode === 'none'){
+            const add = document.createElement('button'); add.textContent='הוסף'; add.className='add';
+            add.addEventListener('click', ()=> addToCart(item, 1));
+            qty.appendChild(add);
+          } else {
+            const step = (item.qtyMode === 'unit') ? 1 : 0.5;
+            const minus = document.createElement('button'); minus.className='btn'; minus.textContent='–';
+            const input = document.createElement('input'); input.type='number'; input.min='0'; input.step=String(step); input.value='0';
+            const plus  = document.createElement('button'); plus.className='btn'; plus.textContent='+';
+            const add   = document.createElement('button'); add.textContent='הוסף'; add.className='add btn';
+
+            const setVal = v => input.value = (Math.max(0, v)).toString().replace(/\.0$/,'');
+            const stepUp = ()=> setVal((parseFloat(input.value)||0) + step);
+            const stepDn = ()=> setVal(Math.max(0, (parseFloat(input.value)||0) - step));
+
+            minus.addEventListener('click', stepDn);
+            plus.addEventListener('click', stepUp);
+            add.addEventListener('click', ()=>{
+              const n = Math.max(0, parseFloat(input.value||'0'));
+              if(n>0) addToCart(item, n);
+              setVal(0);
+            });
+
+            qty.append(minus, input, plus, add);
+
+            const chips = document.createElement('div'); chips.className='chips';
+            const chipVals = (item.qtyMode === 'unit') ? [1,2,3,4,5] : [0.5,1,1.5,2,2.5,3,4,5];
+            chipVals.forEach(v=>{
+              const chip = document.createElement('button');
+              chip.className = 'chip';
+              chip.textContent = (item.qtyMode === 'unit') ? `${v} יח׳` : `${v} ק״ג`;
+              chip.addEventListener('click', ()=> setVal(v));
+              chips.appendChild(chip);
+            });
+            card.appendChild(chips);
+          }
+
+          card.append(top, qty);
+          list.appendChild(card);
+        });
+
+        section.appendChild(list);
+        cols.appendChild(section);
+      });
+    }
+
+    apply();
+    q.addEventListener('input', apply);
+    sortSel.addEventListener('change', apply);
+  </script>
+</body>
+</html>
