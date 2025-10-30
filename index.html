@@ -16,7 +16,8 @@
     header{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
     h1{margin:0;font-size:22px}
     .tools{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-    input,select,button{background:var(--paper);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+    input,select,button,textarea{background:var(--paper);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+    textarea{resize:vertical}
     .cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:start}
     .cat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column}
     .cat h2{margin:0;padding:12px 14px;font-size:18px;background:#141924;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
@@ -35,16 +36,19 @@
     .chip:hover{border-color:#3a425a}
     .cart{position:sticky;top:10px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:260px}
     .cart h3{margin:0 0 8px 0}
-    .cart-list{display:grid;gap:8px;margin:8px 0;max-height:45vh;overflow:auto}
+    .cart-list{display:grid;gap:8px;margin:8px 0;max-height:38vh;overflow:auto}
     .mini{font-size:12px;color:var(--muted)}
     .line{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
     .del{background:transparent;border:1px dashed var(--line);padding:6px 8px;border-radius:8px;color:var(--muted);font-size:12px;cursor:pointer}
     .note{margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;line-height:1.5}
+    .notes{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+    .notes label{font-size:13px;color:var(--muted)}
     .cta{background:var(--cta);border-color:var(--cta);color:#06251a;font-weight:800}
+    .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
     .two{display:grid;grid-template-columns:1fr 320px;gap:14px}
     @media (max-width:900px){.two{grid-template-columns:1fr}.cart{position:static}}
     @media print{
-      .tools, .cta, #copyBtn, #waBtn {display:none}
+      .tools, .cta, #copyBtn, #waBtn, #notesArea {display:none}
       body{background:#fff;color:#000}
       .card{box-shadow:none}
     }
@@ -79,7 +83,13 @@
           המחירון מתעדכן לעיתים קרובות – יש לוודא את תוקפו בעת ההזמנה.
         </div>
 
-        <div style="display:flex;gap:8px;margin-top:10px">
+        <!-- הערות לקצב -->
+        <div class="notes">
+          <label for="notesArea">הערות לקצב (למשל: חזה חתוך לקוביות / לשניצלים, נתח שלם, קצוץ וכו’)</label>
+          <textarea id="notesArea" rows="3" placeholder="כתבו כאן כל בקשה מיוחדת לחיתוך/אריזה…"></textarea>
+        </div>
+
+        <div class="actions">
           <button id="copyBtn">העתקת סל</button>
           <button id="waBtn" class="cta">שליחה ל־WhatsApp</button>
         </div>
@@ -103,7 +113,7 @@
       {name:"פרגית עם עור", price:40, category:"עופות"},
       {name:"שוקיים", price:30, category:"עופות"},
       {name:"כנפיים", price:20, category:"עופות"},
-      {name:"חזה הודו", price:45, category:"עופות"},
+      {name:"חזה הודו", price:45, category:"עופות"},          <!-- עודכן ל-45 -->
       {name:"כרעיים 4 קילו", price:100, category:"עופות", qtyMode:"none"},
 
       // עגל
@@ -152,8 +162,9 @@
       {name:"המבורגר", price:75, category:"מיוחדים"},
       {name:"קבב", price:75, category:"מיוחדים"},
       {name:"סרסיסו", price:75, category:"מיוחדים"},
+      {name:"לוליפופ", price:180, category:"מיוחדים"},
       {name:"מרגז חריף", price:75, category:"מיוחדים"},
-      {name:"לוליפופ כבש", price:89, category:"מיוחדים"},
+      /* {name:"לוליפופ כבש", price:89, category:"מיוחדים"},  <-- הוסר לפי בקשתך */
       {name:"כנפיים מתובל", price:25, category:"מיוחדים"},
       {name:"עוף ממולה", price:49, category:"מיוחדים"},
       {name:"כבש ממולאים", price:139, category:"מיוחדים"},
@@ -170,6 +181,7 @@
     ];
     const desiredOrder = ["עופות","עגל","סטייקים","כבש","מיוחדים","שווארמה"];
 
+    // אלמנטים
     const cols = document.getElementById('cols');
     const q = document.getElementById('q');
     const sortSel = document.getElementById('sort');
@@ -177,7 +189,9 @@
     const cartList = document.getElementById('cartList');
     const copyBtn = document.getElementById('copyBtn');
     const waBtn = document.getElementById('waBtn');
+    const notesArea = document.getElementById('notesArea');
 
+    // סל
     const cart = new Map();
     const keyOf = i => `${i.name}|${i.category}`;
     function addToCart(item, qty){
@@ -211,6 +225,13 @@
       Array.from(cart.values()).forEach(it=>{
         lines.push(`• ${it.category} | ${it.name} × ${it.qty} — ${money(it.price * it.qty)}`);
       });
+      // הוספת הערות לקצב אם מולאו
+      const notes = (notesArea.value||"").trim();
+      if(notes){
+        lines.push("");
+        lines.push("הערות לקצב:");
+        lines.push(notes);
+      }
       lines.push("");
       lines.push("הערה: המחיר הסופי ייקבע אחרי שקילה בפועל. המחירון מתעדכן; יש לוודא תוקף בעת ההזמנה.");
       return lines.join("\n");
@@ -223,9 +244,10 @@
       });
     });
     waBtn.addEventListener('click', ()=>{
-      window.open(WA_BASE + encodeURIComponent(buildText()), "_blank");
+      window.open("https://wa.me/972549392888?text=" + encodeURIComponent(buildText()), "_blank");
     });
 
+    // עזר
     function groupByCategory(rows){
       const m = new Map();
       rows.forEach(x=>{
